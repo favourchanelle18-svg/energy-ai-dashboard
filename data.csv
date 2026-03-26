@@ -1,0 +1,11 @@
+room,occupancy,light,ac,energy_usage,time
+Room1,0,1,1,5,1
+Room2,1,1,0,3,2
+Room3,0,1,1,6,3
+Room4,1,1,1,7,4
+Room5,0,0,1,4,5
+Room1,0,1,1,6,6
+Room2,1,1,0,3,7
+Room3,0,1,1,5,8
+Room4,1,1,1,8,9
+Room5,0,0,1,4,10
