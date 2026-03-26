@@ -1,78 +1,60 @@
-
-
+# app.py
 import streamlit as st
 import pandas as pd
-import numpy as np
-from sklearn.ensemble import IsolationForest
-from sklearn.linear_model import LinearRegression
 import plotly.express as px
 
-st.title("🏢 AI Energy Intelligence Dashboard")
+# Page configuration
+st.set_page_config(page_title="Energy Efficiency Dashboard", layout="wide")
+
+st.title("🏠 AI Energy Efficiency Dashboard")
+st.write("Interactive dashboard to monitor and optimize energy usage in rooms.")
 
 # Load data
-data = pd.read_csv("data.csv")
+data = pd.read_csv("data.csv")  # Make sure data.csv is in the same folder
 
-st.subheader("📊 Raw Data")
-st.write(data)
+# Sidebar interactivity
+st.sidebar.header("Filters")
 
-# -----------------------------
-# Waste Detection
-# -----------------------------
-st.subheader("🚨 Energy Waste Detection")
+# Select room
+room = st.sidebar.selectbox("Choose a room", data['Room'].unique())
 
-data['waste'] = (data['occupancy'] == 0) & ((data['light'] == 1) | (data['ac'] == 1))
+# Select appliance (optional)
+appliances_in_room = data[data['Room']==room]['Appliance'].unique()
+appliance = st.sidebar.selectbox("Choose appliance (optional)", ["All"] + list(appliances_in_room))
 
-waste_rooms = data[data['waste'] == True]
+# Set efficiency threshold
+threshold = st.sidebar.slider("Efficiency threshold (%)", 0, 100, 80)
 
-st.write("Rooms wasting energy:")
-st.write(waste_rooms)
+# Filter data based on selection
+if appliance == "All":
+    filtered_data = data[data['Room']==room]
+else:
+    filtered_data = data[(data['Room']==room) & (data['Appliance']==appliance)]
 
-# -----------------------------
-# Anomaly Detection (AI)
-# -----------------------------
-st.subheader("🤖 AI Anomaly Detection")
+# Compute efficiency score
+used_energy = filtered_data['Used_kWh'].sum()
+total_energy = filtered_data['Total_kWh'].sum()
+if total_energy > 0:
+    efficiency_score = round(100 * (1 - used_energy / total_energy), 2)
+else:
+    efficiency_score = 100.0
 
-model = IsolationForest()
-data['anomaly'] = model.fit_predict(data[['energy_usage']])
+# Show efficiency score
+st.metric("⚡ Efficiency Score (%)", efficiency_score)
 
-st.write(data[['room', 'energy_usage', 'anomaly']])
+# Actionable suggestions
+if efficiency_score < threshold:
+    st.warning(f"Room '{room}' is inefficient! Consider turning off unused appliances.")
+else:
+    st.success(f"Room '{room}' is efficient.")
 
-# -----------------------------
-# Prediction Model
-# -----------------------------
-st.subheader("📈 Energy Prediction")
+# Show data table
+st.subheader(f"Energy Data for {room}")
+st.dataframe(filtered_data)
 
-X = data[['time']]
-y = data['energy_usage']
-
-reg = LinearRegression()
-reg.fit(X, y)
-
-future_time = np.array([[11], [12], [13]])
-predictions = reg.predict(future_time)
-
-pred_df = pd.DataFrame({
-    "time": [11,12,13],
-    "predicted_energy": predictions
-})
-
-st.write(pred_df)
-
-# -----------------------------
-# Visualization
-# -----------------------------
-st.subheader("📉 Energy Usage Graph")
-
-fig = px.line(data, x='time', y='energy_usage', title="Energy Usage Over Time")
-st.plotly_chart(fig)
-
-# -----------------------------
-# Efficiency Score
-# -----------------------------
-st.subheader("🌱 Efficiency Score")
-
-total = len(data)
-waste_count = len(waste_rooms)
-
-score = 100 - (waste_count / total * 100)
+# Dynamic chart
+st.subheader(f"Energy Usage Chart for {room}")
+fig = px.bar(filtered_data, x='Appliance', y='Used_kWh', color='Used_kWh',
+             title=f'Energy Consumption in {room}', labels={'Used_kWh':'Energy Used (kWh)'})
+st.plotly_chart(fig, use_container_width=True)
 
