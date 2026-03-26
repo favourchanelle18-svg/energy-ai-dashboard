@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -74,4 +76,3 @@ waste_count = len(waste_rooms)
 
 score = 100 - (waste_count / total * 100)
 
-st.metric("Efficiency Score", f"{score:.2f}%")
