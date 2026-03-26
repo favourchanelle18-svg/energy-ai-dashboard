@@ -5,56 +5,59 @@ import plotly.express as px
 
 # Page configuration
 st.set_page_config(page_title="Energy Efficiency Dashboard", layout="wide")
-
 st.title("🏠 AI Energy Efficiency Dashboard")
 st.write("Interactive dashboard to monitor and optimize energy usage in rooms.")
 
-# Load data
-data = pd.read_csv("data.csv")  # Make sure data.csv is in the same folder
+# --- Load CSV ---
+data = pd.read_csv("data.csv")
+data.columns = data.columns.str.strip()  # remove any spaces in column names
 
-# Sidebar interactivity
+# Rename columns to match dashboard logic
+data.rename(columns={'room':'Room', 'energy_usage':'Used_kWh'}, inplace=True)
+
+# Compute Total_kWh as sum of light + AC usage (assuming 1 = ON, 0 = OFF)
+data['Total_kWh'] = data['light'] + data['ac']
+
+# --- Sidebar Filters ---
 st.sidebar.header("Filters")
 
-# Select room
+# Room selector
 room = st.sidebar.selectbox("Choose a room", data['Room'].unique())
 
-# Select appliance (optional)
-appliances_in_room = data[data['Room']==room]['Appliance'].unique()
-appliance = st.sidebar.selectbox("Choose appliance (optional)", ["All"] + list(appliances_in_room))
-
-# Set efficiency threshold
+# Threshold slider for efficiency
 threshold = st.sidebar.slider("Efficiency threshold (%)", 0, 100, 80)
 
-# Filter data based on selection
-if appliance == "All":
-    filtered_data = data[data['Room']==room]
-else:
-    filtered_data = data[(data['Room']==room) & (data['Appliance']==appliance)]
+# Filter data for the selected room
+room_data = data[data['Room'] == room]
 
-# Compute efficiency score
-used_energy = filtered_data['Used_kWh'].sum()
-total_energy = filtered_data['Total_kWh'].sum()
+# --- Efficiency Calculation ---
+used_energy = room_data['Used_kWh'].sum()
+total_energy = room_data['Total_kWh'].sum()
+
 if total_energy > 0:
     efficiency_score = round(100 * (1 - used_energy / total_energy), 2)
 else:
     efficiency_score = 100.0
 
-# Show efficiency score
+# Display efficiency score
 st.metric("⚡ Efficiency Score (%)", efficiency_score)
 
-# Actionable suggestions
+# Actionable suggestion
 if efficiency_score < threshold:
-    st.warning(f"Room '{room}' is inefficient! Consider turning off unused appliances.")
+    st.warning(f"Room '{room}' is inefficient! Consider turning off unused lights or AC.")
 else:
     st.success(f"Room '{room}' is efficient.")
 
-# Show data table
+# --- Show Data Table ---
 st.subheader(f"Energy Data for {room}")
-st.dataframe(filtered_data)
+st.dataframe(room_data)
 
-# Dynamic chart
+# --- Dynamic Chart ---
 st.subheader(f"Energy Usage Chart for {room}")
-fig = px.bar(filtered_data, x='Appliance', y='Used_kWh', color='Used_kWh',
-             title=f'Energy Consumption in {room}', labels={'Used_kWh':'Energy Used (kWh)'})
+# For the chart, show light, AC, and total energy usage per time step
+chart_data = room_data[['time', 'light', 'ac', 'Used_kWh']].melt(id_vars='time', 
+                                                                   var_name='Appliance', 
+                                                                   value_name='Energy')
+fig = px.bar(chart_data, x='time', y='Energy', color='Appliance', barmode='group',
+             title=f"Energy Usage in {room} Over Time")
 st.plotly_chart(fig, use_container_width=True)
-
